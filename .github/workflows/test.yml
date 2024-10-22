@@ -1,0 +1,25 @@
+name: Build test
+
+on: [push, pull_request, workflow_dispatch]
+
+env:
+  MACHINE: "qcm6490"
+  DISTRO: "qcom-wayland"
+
+jobs:
+  environment_test:
+    name: "env test"
+    runs-on: ubuntu-latest
+    steps:
+      - name: echo ENV
+        run: |
+          echo ${MACHINE}
+          echo ${DISTRO}
+
+      - name: re-export
+        run: |
+          export MACHINE=6490
+          export DISTRO=ubuntu
+          echo "re-export:"
+          echo ${MACHINE}
+          echo ${DISTRO}
