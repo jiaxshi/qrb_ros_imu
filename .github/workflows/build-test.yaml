@@ -1,0 +1,83 @@
+name: Build test
+
+on:
+  pull_request:
+
+  workflow_dispatch:
+    inputs:
+      machine:
+        description: "Specifies the target device for which the image is built."
+        required: true
+        default: 'qcs6490-rb3gen2-vision-kit'
+        type: choice
+        options:
+          - qcs6490-rb3gen2-vision-kit
+          - qcs9100-ride-sx
+          - qcm6490-idp
+          - qcs6490-rb3gen2-core-kit
+          - sa8775p-ride-sx
+      distro:
+        description: "The short name of the distribution."
+        required: true
+        default: 'qcom-robotics-ros2-humble'
+        type: choice
+        options:
+          - qcom-robotics-ros2-humble
+          - qcom-robotics-ros2-jazzy
+          - qcom-wayland
+      build_override:
+        description: "QCOM build override"
+        required: true
+        default: 'custom'
+        type: choice
+        options:
+          - custom
+          - base
+      custom_build_cmd:
+          description: "Manually setting build commands"
+          required: false
+          type: string
+          default: ''
+
+env:
+  PERSIST_DIR: /srv/gh-runners/quic-qrb-ros
+  DL_DIR: $PERSIST_DIR}/downloads
+
+jobs:
+  build-pr:
+    runs-on: [self-hosted, x86]
+    timeout-minutes: 720
+    name: ${{inputs.machine}}.${{inputs.distro}}.${{inputs.build_override}}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check shared directory
+        run: |
+          if [ ! -d ${DL_DIR} ];then
+            echo "Creating ${DL_DIR}!"
+            mkdir -p ${DL_DIR}
+          fi
+
+      - name: Sync source tree
+        run: |
+          repo init -u https://github.com/quic-yocto/qcom-manifest -b qcom-linux-kirkstone -m qcom-6.6.38-QLI.1.2-Ver.1.1_robotics-product-sdk-1.1.xml
+          repo sync -c -j8
+          
+      - name: Custom build
+        if: ${{github.event.inputs.custom_build_cmd != ''}}
+        run: |
+          ln -s ${DL_DIR} ./downloads
+          export MACHINE=${{inputs.machine || 'qcs6490-rb3gen2-vision-kit'}}
+          export DISTRO=${{inputs.distro || 'qcom-robotics-ros2-humble'}}
+          export QCOM_SELECTED_BSP=${{inputs.build_override || 'custom'}}
+          source setup-robotics-environment
+          ${{github.event.inputs.custom_build_cmd}}
+
+      - name: Full compilation
+        if: ${{github.event.inputs.custom_build_cmd == ''}}
+        run: |
+          MACHINE=${{inputs.machine}} DISTRO=${{inputs.distro}} QCOM_SELECTED_BSP=${{inputs.build_override}} source setup-robotics-environment
+          ../qirp-build qcom-robotics-full-image
