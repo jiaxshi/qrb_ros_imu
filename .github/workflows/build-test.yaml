@@ -39,15 +39,27 @@ on:
           type: string
           default: ''
 
+env:
+  PERSIST_DIR: /srv/gh-runners/quic-qrb-ros
+  DL_DIR: $PERSIST_DIR}/downloads
+
 jobs:
   build-pr:
     runs-on: [self-hosted, x86]
+    timeout-minutes: 720
     name: ${{inputs.machine}}.${{inputs.distro}}.${{inputs.build_override}}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Check shared directory
+        run: |
+          if [ ! -d ${DL_DIR} ];then
+            echo "Creating ${DL_DIR}!"
+            mkdir -p ${DL_DIR}
+          fi
 
       - name: Sync source tree
         run: |
@@ -57,7 +69,11 @@ jobs:
       - name: Custom build
         if: ${{github.event.inputs.custom_build_cmd != ''}}
         run: |
-          MACHINE=${{inputs.machine}} DISTRO=${{inputs.distro}} QCOM_SELECTED_BSP=${{inputs.build_override}} source setup-robotics-environment
+          ln -s ${DL_DIR} ./downloads
+          export MACHINE=${{inputs.machine || 'qcs6490-rb3gen2-vision-kit'}}
+          export DISTRO=${{inputs.distro || 'qcom-robotics-ros2-humble'}}
+          export QCOM_SELECTED_BSP=${{inputs.build_override || 'custom'}}
+          source setup-robotics-environment
           ${{github.event.inputs.custom_build_cmd}}
 
       - name: Full compilation
