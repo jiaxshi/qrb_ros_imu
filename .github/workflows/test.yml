@@ -1,8 +1,6 @@
 name: Build test
 
 on:
-  push:
-    branches: action_test
   pull_request:
     branches: action_test
   workflow_dispatch:

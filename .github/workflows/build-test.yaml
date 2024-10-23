@@ -1,4 +1,5 @@
 name: Build test2
+run-name: Build test by ${{github.event_name}}
 
 on:
   push:
@@ -39,19 +40,26 @@ on:
           required: false
           type: string
           default: ''
+      deploy_sdk:
+        description: "Deploy generated SDK to persistent directory"
+        required: false
+        type: boolean
+        default: false
 
 env:
-  PERSIST_DIR: /srv/gh-runners/quic-qrb-ros
-  DL_DIR: /srv/gh-runners/quic-qrb-ros/downloads
+  PERSIST_DIR: ${{ github.workspace }}/quic-qrb-ros
+  DL_DIR: ${{ github.workspace }}/quic-qrb-ros/downloads
   MACHINE: ${{inputs.machine || 'qcs6490-rb3gen2-vision-kit'}}
   DISTRO: ${{inputs.distro || 'qcom-robotics-ros2-humble'}}
   QCOM_SELECTED_BSP: ${{inputs.build_override || 'custom'}}
+  DEPLOY_SDK: ${{github.event.inputs.deploy_sdk || 'true'}}
 
 jobs:
   full-build:
     runs-on: ubuntu-latest
     timeout-minutes: 720
-
+    env:
+      SSTATE_DIR: $PERSIST_DIR/sstate-cache-$DISTRO
     steps:
       - name: Prints
         run: |
@@ -62,11 +70,14 @@ jobs:
           echo "QCOM_SELECTED_BSP=${QCOM_SELECTED_BSP}"
           echo "custom build cmd = ${{github.event.inputs.custom_build_cmd}}"
           echo "DL_DIR: $DL_DIR"
+          echo "SSTATE_DIR: $SSTATE_DIR"
+          echo "DEPLOY_SDK: $DEPLOY_SDK"
 
-      # - name: Checkout repo
-      #   uses: actions/checkout@v4
-      #   with:
-      #     fetch-depth: 0
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: qrb_ros_imu_src
 
       - name: Check shared directory
         run: |
@@ -74,6 +85,18 @@ jobs:
             echo "Creating ${DL_DIR}!"
             mkdir -p ${DL_DIR} || echo "Can not create ${DL_DIR}!"
           fi
+
+          if [ ! -d ${PERSIST_DIR}/sstate-cache-$DISTRO ];then
+            echo "Creating ${PERSIST_DIR}/sstate-cache-$DISTRO!"
+            mkdir -p ${PERSIST_DIR}/sstate-cache-$DISTRO || echo "Can not create ${PERSIST_DIR}/sstate-cache-$DISTRO!"
+          fi
+
+          echo "Current path: `pwd`"
+          tree .. -L 2
+          mkdir test
+          cd test
+          echo "Current path: `pwd`"
+          ls -al ${PERSIST_DIR}/
 
       # - name: Sync source tree
       #   run: |
@@ -84,7 +107,7 @@ jobs:
         if: ${{github.event.inputs.custom_build_cmd != ''}}
         run: |
           echo "Custom build start"
-          # ln -s ${DL_DIR} ./downloads
+          ln -s ${DL_DIR} ./downloads
           # source setup-robotics-environment
           # ${{github.event.inputs.custom_build_cmd}}
 
@@ -92,5 +115,9 @@ jobs:
         if: ${{github.event.inputs.custom_build_cmd == ''}}
         run: |
           echo "Full build start"
+          echo "Current path: `pwd`"
+          ln -s ${DL_DIR} ./downloads
+          ln -s ${PERSIST_DIR}/sstate-cache-$DISTRO ./sstate-cache
+          ls -al
           # MACHINE=${{inputs.machine}} DISTRO=${{inputs.distro}} QCOM_SELECTED_BSP=${{inputs.build_override}} source setup-robotics-environment
           # ../qirp-build qcom-robotics-full-image
