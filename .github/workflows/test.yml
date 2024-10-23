@@ -1,6 +1,41 @@
 name: Build test
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: action_test
+  pull_request:
+    branches: action_test
+  workflow_dispatch:
+    inputs:
+      machine:
+        description: "Specifies the target device for which the image is built."
+        required: true
+        default: 'qcs6490-rb3gen2-vision-kit'
+        type: choice
+        options:
+          - qcs6490-rb3gen2-vision-kit
+          - qcs9100-ride-sx
+      distro:
+        description: "The short name of the distribution."
+        required: true
+        default: 'qcom-robotics-ros2-humble'
+        type: choice
+        options:
+          - qcom-robotics-ros2-humble
+          - qcom-wayland
+      build_override:
+        description: "QCOM build override"
+        required: true
+        default: 'custom'
+        type: choice
+        options:
+          - custom
+          - base
+      custom_build_cmd:
+          description: "Manually setting build commands"
+          required: false
+          type: string
+          default: ''
 
 env:
   MACHINE: "qcm6490"
