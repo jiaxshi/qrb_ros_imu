@@ -1,28 +1,36 @@
-name: Lint checker
+name: CI
 
-on:
-  push:
-  pull_request:
-
-permissions: {}
+on: [push, pull_request]
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-      # To report GitHub Actions status checks
-      statuses: write
+  commitlint:
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
-          # super-linter needs the full git history to get the
-          # list of files that changed across commits
           fetch-depth: 0
-      - name: Super-Linter
-        uses: super-linter/super-linter@v7.3.0
-        env:
-          # To report GitHub Actions status checks
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install required dependencies
+        run: |
+          apt update
+          apt install -y sudo
+          sudo apt install -y git curl
+          curl -sL https://deb.nodesource.com/setup_14.x | sudo -E bash -
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+      - name: Print versions
+        run: |
+          git --version
+          node --version
+          npm --version
+          npx commitlint --version
+      - name: Install commitlint
+        run: |
+          npm install conventional-changelog-conventionalcommits
+          npm install commitlint@latest
+
+      - name: Validate current commit (last commit) with commitlint
+        if: github.event_name == 'push'
+        run: npx commitlint --last --verbose
+
+      - name: Validate PR commits with commitlint
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
