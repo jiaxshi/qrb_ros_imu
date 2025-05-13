@@ -19,18 +19,17 @@ jobs:
           sudo apt install -y git curl
           curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
           sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+      - name: Install commitlint
+        run: |
+          #npm install conventional-changelog-conventionalcommits
+          #npm install commitlint@latest @commitlint/config-angular
+          npm install @commitlint/config-angular @commitlint/cli
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
           npx commitlint --version
-      - name: Install commitlint
-        run: |
-          #npm install conventional-changelog-conventionalcommits
-          #npm install commitlint@latest @commitlint/config-angular
-          npm install @commitlint/config-angular @commitlint/cli
-
       - name: Validate current commit (last commit) with commitlint
         if: github.event_name == 'push'
         run: npx commitlint --last --verbose
